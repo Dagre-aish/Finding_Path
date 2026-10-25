@@ -1,0 +1,16 @@
+import { describe, expect, it } from 'vitest';
+import { search } from '../src/algorithms';
+import type { Algorithm, Cell } from '../src/types';
+const board = (rows: number, cols: number, walls: [number, number][] = [], weights: [number, number, number][] = []) => Array.from({ length: rows }, (_, row) => Array.from({ length: cols }, (_, col): Cell => ({ row, col, wall: walls.some(([r, c]) => r === row && c === col), weight: weights.find(([r, c]) => r === row && c === col)?.[2] ?? 1 })));
+const validPath = (g: Cell[][], path: { row: number; col: number }[]) => path.every((p, i) => !g[p.row][p.col].wall && (i === 0 || Math.abs(path[i - 1].row - p.row) + Math.abs(path[i - 1].col - p.col) === 1));
+describe('grid search algorithms', () => {
+  it.each<Algorithm>(['BFS', 'DFS', 'Dijkstra', 'A*'])('%s finds a valid path', a => { const g = board(5, 7, [[1, 3], [2, 3], [3, 3]]); const { result } = search(g, { row: 2, col: 0 }, { row: 2, col: 6 }, a); expect(result.found).toBe(true); expect(validPath(g, result.path)).toBe(true); });
+  it('BFS and A* return shortest paths on an unweighted grid', () => { const g = board(7, 9, [[1, 4], [2, 4], [3, 4], [4, 4], [5, 4]]); const s = { row: 3, col: 1 }, e = { row: 3, col: 7 }; expect(search(g, s, e, 'BFS').result.path.length).toBe(search(g, s, e, 'A*').result.path.length); });
+  it('Dijkstra and A* avoid expensive terrain', () => { const g = board(3, 5, [], [[1, 1, 9], [1, 2, 9], [1, 3, 9]]), s = { row: 1, col: 0 }, e = { row: 1, col: 4 }; for (const a of ['Dijkstra', 'A*'] as Algorithm[]) { const r = search(g, s, e, a).result; expect(r.cost).toBe(6); expect(r.path.some(p => p.row === 1 && p.col > 0 && p.col < 4)).toBe(false); } });
+  it('reports actual terrain cost even when BFS ignores terrain weights', () => { const g = board(2, 3, [], [[0, 1, 4]]); const r = search(g, { row: 0, col: 0 }, { row: 0, col: 2 }, 'BFS').result; expect(r.path.length - 1).toBe(2); expect(r.cost).toBe(5); });
+  it('DFS returns a valid path without requiring it to be shortest', () => { const g = board(4, 5); const r = search(g, { row: 0, col: 0 }, { row: 3, col: 4 }, 'DFS').result; expect(r.found).toBe(true); expect(validPath(g, r.path)).toBe(true); });
+  it('handles fully blocked and wall destinations', () => { const g = board(3, 3, [[0, 1], [1, 0], [1, 2], [2, 1]]); expect(search(g, { row: 0, col: 0 }, { row: 2, col: 2 }, 'BFS').result.found).toBe(false); expect(search(board(2, 2, [[1, 1]]), { row: 0, col: 0 }, { row: 1, col: 1 }, 'A*').result.found).toBe(false); });
+  it('handles start equal to destination', () => { const p = { row: 1, col: 1 }; const r = search(board(3, 3), p, p, 'Dijkstra').result; expect(r.found).toBe(true); expect(r.path).toEqual([p]); expect(r.cost).toBe(0); });
+  it('reconstructs parent chain from start to destination', () => { const r = search(board(3, 4), { row: 1, col: 0 }, { row: 1, col: 3 }, 'BFS').result; expect(r.path[0]).toEqual({ row: 1, col: 0 }); expect(r.path.at(-1)).toEqual({ row: 1, col: 3 }); });
+  it('all algorithms avoid walls on a shared input', () => { const g = board(6, 8, [[2, 2], [3, 2], [4, 2], [1, 5], [2, 5], [3, 5]]); for (const a of ['BFS', 'DFS', 'Dijkstra', 'A*'] as Algorithm[]) { const r = search(g, { row: 0, col: 0 }, { row: 5, col: 7 }, a).result; expect(r.found).toBe(true); expect(validPath(g, r.path)).toBe(true); } });
+});
