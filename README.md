@@ -5,6 +5,8 @@ A React + Vite + TypeScript AOA mini-project with a grid search visualizer, algo
 ## Run locally
 
 ```bash
+C:\Users\Aishwarya\Documents\New project\pathfinder-ai
+
 npm install
 npm run dev
 ```
